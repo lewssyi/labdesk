@@ -1,0 +1,4 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0">
+  <!-- 本机代理配置。迁移到其他电脑时可直接使用 Maven 默认配置。 -->
+  <proxies><proxy><id>local-development</id><active>true</active><protocol>http</protocol><host>127.0.0.1</host><port>7897</port><nonProxyHosts>localhost|127.0.0.1</nonProxyHosts></proxy></proxies>
+</settings>

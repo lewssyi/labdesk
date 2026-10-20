@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dev.labdesk.mapper.DeviceMapper">
+    <select id="findAll" resultType="Device">
+        SELECT id, name, enabled FROM device ORDER BY id
+    </select>
+    <select id="findById" resultType="Device">
+        SELECT id, name, enabled FROM device WHERE id = #{id}
+    </select>
+    <select id="findByIdForUpdate" resultType="Device">
+        SELECT id, name, enabled FROM device WHERE id = #{id} FOR UPDATE
+    </select>
+    <insert id="insertIfAbsent">
+        INSERT IGNORE INTO device(id, name) VALUES(#{id}, #{name})
+    </insert>
+</mapper>

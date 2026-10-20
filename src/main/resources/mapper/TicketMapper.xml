@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dev.labdesk.mapper.TicketMapper">
+    <sql id="columns">id, user_id, device_id, title, description, status, version, created_at</sql>
+    <select id="findAllRecent" resultType="Ticket">
+        SELECT <include refid="columns"/> FROM ticket ORDER BY id DESC LIMIT 100
+    </select>
+    <select id="findRecentByUser" resultType="Ticket">
+        SELECT <include refid="columns"/> FROM ticket WHERE user_id = #{userId} ORDER BY id DESC LIMIT 100
+    </select>
+    <select id="findById" resultType="Ticket">
+        SELECT <include refid="columns"/> FROM ticket WHERE id = #{id}
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="ticket.id" keyColumn="id">
+        INSERT INTO ticket(user_id, device_id, title, description)
+        VALUES(#{ticket.userId}, #{ticket.deviceId}, #{ticket.title}, #{ticket.description})
+    </insert>
+    <update id="updateStatusIfVersionMatches">
+        UPDATE ticket SET status = #{to}, version = version + 1
+        WHERE id = #{id} AND version = #{version} AND status = #{from}
+    </update>
+</mapper>

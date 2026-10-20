@@ -1,0 +1,13 @@
+target/
+.idea/
+*.iml
+.env
+*.log
+
+# Local configuration and generated test artifacts
+application-local.yaml
+.env.*
+!.env.example
+__pycache__/
+/tests/*-result.json
+/tests/agent-page.png

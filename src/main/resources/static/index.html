@@ -1,0 +1,41 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LabDesk · 实验室设备与工单</title>
+<style>body{font:16px system-ui;background:#f4f6f9;color:#182237;max-width:1100px;margin:30px auto;padding:0 20px}h1{margin-bottom:4px}small{color:#596579}section{background:white;padding:22px;border-radius:12px;margin:18px 0;border:1px solid #dde3eb}input,select,textarea,button{font:inherit;padding:9px;border:1px solid #ccd5e0;border-radius:6px;margin:4px}button{background:#2055bb;color:white;cursor:pointer}button:disabled{opacity:.5}textarea{width:90%;height:60px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:10px;text-align:left;border-bottom:1px solid #e6eaf0}#message{white-space:pre-wrap;padding:10px;color:#b32929}pre{white-space:pre-wrap;word-break:break-word;background:#f5f7fa;padding:12px}.row{display:flex;flex-wrap:wrap;align-items:center}</style>
+<h1>LabDesk</h1><small>实验室设备预约与故障工单 · Java 单模块学习项目</small><div id="message" role="status"></div>
+<section><h2>登录</h2><div class="row"><input id="username" value="student" placeholder="账号"><input id="password" type="password" value="student123"><button id="login">登录</button><button id="logout">退出</button><span id="identity">未登录</span></div><small>学生：student / student123　管理员：admin / admin123。管理员可处理工单，学生可关闭已解决的本人工单。</small></section>
+<section><h2>设备预约</h2><div class="row"><select id="device"></select><input id="start" type="datetime-local"><input id="end" type="datetime-local"><button id="reserve">预约</button><button id="refresh">刷新列表</button></div><table><thead><tr><th>编号</th><th>设备</th><th>开始 / 结束</th><th>状态 / 版本</th><th>操作</th></tr></thead><tbody id="bookings"></tbody></table></section>
+<section><h2>故障工单</h2><div class="row"><select id="ticketDevice"></select><input id="title" placeholder="故障标题" maxlength="100"></div><textarea id="description" placeholder="故障现象、报错信息、已经尝试的步骤"></textarea><div><button id="createTicket">提交工单</button></div><table><thead><tr><th>编号 / 设备</th><th>标题</th><th>状态 / 版本</th><th>操作</th></tr></thead><tbody id="tickets"></tbody></table><pre id="events">点击“处理记录”查看工单流转日志。</pre></section>
+<section><h2>知识库助手</h2><small>试问：设备无法开机怎么办？未配置模型密钥时会明确显示“仅检索”，不会冒充 AI 回答。</small><div class="row"><input id="question" placeholder="输入问题，例如预约时间冲突怎么办" style="flex:1"><button id="ask">查询</button></div><pre id="answer">等待查询</pre></section>
+<section><h2>实验室预约助手</h2><small id="agentStatus">登录后可查询设备、空闲时段和本人预约。时间均为北京时间。</small><p><small>试问：“有哪些设备？”“我本周有哪些预约？”“编号为2的设备明天14:00到16:00能预约吗？”</small></p><div id="agentChat" aria-live="polite"></div><div class="row"><input id="agentQuestion" maxlength="1000" placeholder="输入设备或预约问题；可继续补充上一轮的设备与时间" style="flex:1"><button id="agentSend">发送</button><button id="agentClear">清空对话</button></div><small>助手提供查询，预约请通过上方表单提交。对话仅保存在当前页面，最多携带最近3轮。</small></section>
+<script>
+let token='',role='',agentHistory=[],agentEpoch=0;const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function clearAgent(){agentEpoch++;agentHistory=[];$('agentChat').replaceChildren()}
+function agentBubble(label,text){const p=document.createElement('pre');p.textContent=label+'：'+text;$('agentChat').append(p)}
+async function agentStatus(){const r=await api('/agent/status');$('agentStatus').textContent=r.configured?'预约助手已配置 · 可查询设备、空闲时间和本人预约 · 北京时间':'预约助手未配置：设置 DASHSCOPE_API_KEY 并重启后端后使用。'}
+async function api(path,body,extra={}){const response=await fetch('/api'+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{}),...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});const data=await response.json();if(!response.ok)throw new Error(data.message||'请求失败');return data;}
+function action(id,fn){$(id).onclick=async()=>{const b=$(id);b.disabled=true;$('message').textContent='';try{await fn()}catch(e){$('message').textContent=e.message}finally{b.disabled=false}}}
+async function refresh(){const [devices,bookings,tickets]=await Promise.all([api('/devices'),api('/bookings'),api('/tickets')]);const names=Object.fromEntries(devices.map(d=>[d.id,d.name]));for(const id of ['device','ticketDevice'])if(!$(id).options.length)$(id).innerHTML=devices.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('');
+$('bookings').innerHTML=bookings.map(b=>`<tr><td>${b.id}</td><td>${esc(names[b.device_id])}</td><td>${esc(b.start_at)}<br>${esc(b.end_at)}</td><td>${esc(b.status)} / ${b.version}</td><td>${b.status==='CONFIRMED'?`<button data-cancel="${b.id}" data-version="${b.version}">取消</button>`:''}</td></tr>`).join('');
+const next={OPEN:'ACCEPTED',ACCEPTED:'PROCESSING',PROCESSING:'RESOLVED',RESOLVED:'CLOSED'};
+$('tickets').innerHTML=tickets.map(t=>`<tr><td>${t.id} / ${esc(names[t.device_id])}</td><td>${esc(t.title)}</td><td>${esc(t.status)} / ${t.version}</td><td><button data-events="${t.id}">处理记录</button>${next[t.status]&&(role==='ADMIN'||t.status==='RESOLVED')?`<button data-transition="${t.id}" data-version="${t.version}" data-next="${next[t.status]}">转为 ${next[t.status]}</button>`:''}</td></tr>`).join('');}
+document.addEventListener('click',async e=>{const b=e.target;if(!(b instanceof HTMLButtonElement))return;try{if(b.dataset.cancel){await api('/bookings/'+b.dataset.cancel+'/cancel',{version:Number(b.dataset.version)});await refresh()}if(b.dataset.transition){await api('/tickets/'+b.dataset.transition+'/transition',{status:b.dataset.next,version:Number(b.dataset.version),note:'通过演示页面处理'});await refresh()}if(b.dataset.events)$('events').textContent=JSON.stringify(await api('/tickets/'+b.dataset.events+'/events'),null,2)}catch(err){$('message').textContent=err.message}});
+action('login',async()=>{const r=await api('/login',{username:$('username').value,password:$('password').value});clearAgent();token=r.token;role=r.role;$('identity').textContent=r.username+' · '+r.role;await refresh();await agentStatus()});
+action('logout',async()=>{await api('/logout',{});clearAgent();token='';role='';$('identity').textContent='未登录';$('bookings').innerHTML='';$('tickets').innerHTML='';$('agentStatus').textContent='登录后可使用预约助手'});
+action('refresh',refresh);action('reserve',async()=>{await api('/bookings',{deviceId:Number($('device').value),start:$('start').value+':00',end:$('end').value+':00'},{'Idempotency-Key':crypto.randomUUID()});await refresh()});
+action('createTicket',async()=>{await api('/tickets',{deviceId:Number($('ticketDevice').value),title:$('title').value,description:$('description').value});await refresh()});
+action('ask',async()=>{$('answer').textContent=JSON.stringify(await api('/knowledge/ask',{question:$('question').value}),null,2)});
+action('agentClear',async()=>clearAgent());
+action('agentSend',async()=>{
+ if(!token)throw new Error('请先登录');
+ const message=$('agentQuestion').value.trim();if(!message)throw new Error('请输入问题');
+ const epoch=agentEpoch;agentBubble('你',message);$('agentQuestion').value='';
+ const pending=document.createElement('p');pending.textContent='助手正在查询…';$('agentChat').append(pending);
+ try{
+  const r=await api('/agent/chat',{message,history:agentHistory.slice(-6)});
+  if(epoch!==agentEpoch)return;
+  agentBubble('助手',r.answer);
+  if(r.tools.length){const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent='本次工具调用（'+r.tools.length+'次）';details.append(summary);for(const t of r.tools){const pre=document.createElement('pre');pre.textContent=t.name+' · '+(t.success?'成功':'失败')+'\n'+t.result;details.append(pre)}$('agentChat').append(details)}
+  if(r.mode==='AGENT'){agentHistory.push({role:'user',content:message},{role:'assistant',content:r.answer.slice(0,4000)});agentHistory=agentHistory.slice(-6)}
+ }finally{pending.remove()}
+});
+$('agentQuestion').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&!$('agentSend').disabled)$('agentSend').click()});
+</script></html>

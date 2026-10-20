@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dev.labdesk.mapper.TicketEventMapper">
+    <select id="findByTicketId" resultType="TicketEvent">
+        SELECT id, ticket_id, actor_id, from_status, to_status, note, created_at
+        FROM ticket_event WHERE ticket_id = #{ticketId} ORDER BY id
+    </select>
+    <insert id="insert">
+        INSERT INTO ticket_event(ticket_id, actor_id, from_status, to_status, note)
+        VALUES(#{ticketId}, #{actorId}, #{from}, #{to}, #{note})
+    </insert>
+</mapper>

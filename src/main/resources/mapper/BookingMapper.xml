@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dev.labdesk.mapper.BookingMapper">
+    <select id="findOccupiedSlots" resultType="dev.labdesk.vo.ReservationQueries$Slot">
+        SELECT start_at AS `start`, end_at AS `end` FROM booking
+        WHERE device_id = #{deviceId} AND status = 'CONFIRMED'
+          AND start_at &lt; #{end} AND end_at &gt; #{start}
+        ORDER BY start_at, end_at
+    </select>
+    <select id="findOwnInRange" resultType="dev.labdesk.vo.ReservationQueries$MyBooking">
+        SELECT b.id, b.device_id, d.name AS device_name, b.start_at AS `start`, b.end_at AS `end`, b.status
+        FROM booking b JOIN device d ON d.id = b.device_id
+        WHERE b.user_id = #{userId}
+        <if test="start != null">
+            AND b.start_at &lt; #{end} AND b.end_at &gt; #{start}
+        </if>
+        ORDER BY b.start_at DESC, b.id DESC LIMIT 101
+    </select>
+    <sql id="columns">id, user_id, device_id, start_at, end_at, status, version, request_key, created_at</sql>
+    <select id="findAllRecent" resultType="Booking">
+        SELECT <include refid="columns"/> FROM booking ORDER BY id DESC LIMIT 100
+    </select>
+    <select id="findRecentByUser" resultType="Booking">
+        SELECT <include refid="columns"/> FROM booking WHERE user_id = #{userId} ORDER BY id DESC LIMIT 100
+    </select>
+    <select id="findById" resultType="Booking">
+        SELECT <include refid="columns"/> FROM booking WHERE id = #{id}
+    </select>
+    <select id="findByRequestKey" resultType="Booking">
+        SELECT <include refid="columns"/> FROM booking WHERE user_id = #{userId} AND request_key = #{key}
+    </select>
+    <select id="countOverlaps" resultType="int">
+        SELECT COUNT(*) FROM booking
+        WHERE device_id = #{deviceId} AND status = 'CONFIRMED'
+          AND start_at &lt; #{end} AND end_at &gt; #{start}
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="booking.id" keyColumn="id">
+        INSERT INTO booking(user_id, device_id, start_at, end_at, request_key)
+        VALUES(#{booking.userId}, #{booking.deviceId}, #{booking.startAt}, #{booking.endAt}, #{booking.requestKey})
+    </insert>
+    <update id="cancelIfVersionMatches">
+        UPDATE booking SET status = 'CANCELLED', version = version + 1
+        WHERE id = #{id} AND version = #{version} AND status = 'CONFIRMED'
+    </update>
+</mapper>
